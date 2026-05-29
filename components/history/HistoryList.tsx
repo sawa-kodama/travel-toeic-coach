@@ -2,6 +2,7 @@
 
 import { useStudyHistory } from "@/hooks/useStudyHistory";
 import { percentage } from "@/lib/utils";
+import { sceneLabel } from "@/lib/learning";
 
 export function HistoryList() {
   const { history, resetHistory } = useStudyHistory();
@@ -22,7 +23,7 @@ export function HistoryList() {
       <div className="mt-3 grid gap-3">
         {history.length === 0 && (
           <div className="rounded-[1.7rem] bg-white p-5 text-sm leading-6 text-slate-500 shadow-sm ring-1 ring-slate-100">
-            まだ履歴がありません。10問ミニ演習を完了すると、正答率・苦手カテゴリ・ミス傾向がここに記録されます。
+            まだ履歴がありません。10問ミニ演習を完了すると、正答率・苦手カテゴリ・苦手シーン・ミス傾向がここに記録されます。
           </div>
         )}
         {history.map((item) => (
@@ -48,10 +49,13 @@ export function HistoryList() {
               </div>
             </div>
 
-            {Boolean(item.weakCategories?.length || item.missedWords?.length) && (
+            {Boolean(item.weakCategories?.length || item.weakScenes?.length || item.missedWords?.length) && (
               <div className="mt-3 rounded-2xl bg-orange-50 p-3 ring-1 ring-orange-100">
                 {item.weakCategories?.length ? (
                   <p className="text-xs font-black text-orange-700">苦手カテゴリ: {item.weakCategories.join(" / ")}</p>
+                ) : null}
+                {item.weakScenes?.length ? (
+                  <p className="mt-1 text-xs font-black text-brand-700">苦手シーン: {item.weakScenes.map((scene) => sceneLabel(scene)).join(" / ")}</p>
                 ) : null}
                 {item.missedWords?.length ? (
                   <p className="mt-1 text-xs font-bold leading-5 text-slate-600">復習語句: {item.missedWords.slice(0, 6).join("・")}</p>

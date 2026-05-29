@@ -3,7 +3,7 @@
 import { vocabulary } from "@/data/vocabulary";
 import { useLearnedWords } from "@/hooks/useLearnedWords";
 import { useStudyHistory } from "@/hooks/useStudyHistory";
-import { analyzeHistory, levelLabel } from "@/lib/learning";
+import { analyzeHistory, levelLabel, sceneLabel } from "@/lib/learning";
 
 export function StudyStats() {
   const { history } = useStudyHistory();
@@ -32,7 +32,10 @@ export function StudyStats() {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {(insights.weakCategories.length > 0 ? insights.weakCategories : ["まだ分析中"]).map((category) => (
-            <span key={category} className="rounded-full bg-orange-400/20 px-3 py-1 text-xs font-black text-orange-100">苦手: {category}</span>
+            <span key={category} className="rounded-full bg-orange-400/20 px-3 py-1 text-xs font-black text-orange-100">文法: {category}</span>
+          ))}
+          {(insights.weakScenes.length > 0 ? insights.weakScenes : ["restaurant", "shopping", "taxi"]).map((scene) => (
+            <span key={scene} className="rounded-full bg-blue-400/20 px-3 py-1 text-xs font-black text-blue-100">場面: {sceneLabel(scene)}</span>
           ))}
         </div>
       </div>

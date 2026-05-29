@@ -3,7 +3,7 @@
 import { vocabulary } from "@/data/vocabulary";
 import { useLearnedWords } from "@/hooks/useLearnedWords";
 import { useStudyHistory } from "@/hooks/useStudyHistory";
-import { analyzeHistory, levelLabel } from "@/lib/learning";
+import { analyzeHistory, levelLabel, sceneLabel } from "@/lib/learning";
 
 export function ProgressCard() {
   const { history } = useStudyHistory();
@@ -48,7 +48,7 @@ export function ProgressCard() {
             <p className="mt-1 text-lg font-black text-slate-950">{levelLabel(insights.level)}</p>
           </div>
           <p className="text-right text-xs font-bold leading-5 text-slate-500">
-            次回は{insights.weakCategories[0] ?? "基礎文法"}を少し多めに出題します。
+            次回は{sceneLabel(insights.weakScenes[0])}の場面と{insights.weakCategories[0] ?? "基礎文法"}を少し多めに出題します。
           </p>
         </div>
       </div>

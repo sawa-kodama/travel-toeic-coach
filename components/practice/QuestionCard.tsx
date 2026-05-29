@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { questions as fixedQuestions } from "@/data/questions";
 import type { Choice, Question } from "@/types/question";
 import { useStudyHistory } from "@/hooks/useStudyHistory";
-import { analyzeHistory, buildCategoryStatsFromAnswers, extractMissedWords, levelLabel, selectAdaptiveQuestions } from "@/lib/learning";
+import { analyzeHistory, buildCategoryStatsFromAnswers, buildSceneStatsFromAnswers, extractMissedWords, levelLabel, sceneLabel, selectAdaptiveQuestions } from "@/lib/learning";
 import { AnswerChoices } from "./AnswerChoices";
 import { ResultSummary } from "./ResultSummary";
 
@@ -24,7 +24,7 @@ export function QuestionCard() {
   const { history, addHistory } = useStudyHistory();
   const insights = useMemo(() => analyzeHistory(history), [history]);
   const [sessionSeed, setSessionSeed] = useState(0);
-  const activeQuestions = useMemo(() => selectAdaptiveQuestions(fixedQuestions, insights, 10), [insights, sessionSeed]);
+  const activeQuestions = useMemo(() => selectAdaptiveQuestions(fixedQuestions, insights, 10, sessionSeed), [insights, sessionSeed]);
   const [index, setIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<Choice["id"] | undefined>();
   const [answered, setAnswered] = useState(false);
@@ -59,9 +59,14 @@ export function QuestionCard() {
       const finalCorrectCount = finalRecords.filter((record) => record.isCorrect).length;
       const accuracy = Math.round((finalCorrectCount / activeQuestions.length) * 100);
       const categoryStats = buildCategoryStatsFromAnswers(finalRecords);
+      const sceneStats = buildSceneStatsFromAnswers(finalRecords);
       const weakCategories = categoryStats
         .filter((stat) => stat.correct < stat.total)
         .map((stat) => stat.category)
+        .slice(0, 4);
+      const weakScenes = sceneStats
+        .filter((stat) => stat.correct < stat.total)
+        .map((stat) => stat.scene)
         .slice(0, 4);
       const missedWords = extractMissedWords(finalRecords);
 
@@ -77,6 +82,8 @@ export function QuestionCard() {
           accuracy,
           weakCategories,
           categoryStats,
+          sceneStats,
+          weakScenes,
           missedWords,
         });
         setSaved(true);
@@ -139,7 +146,12 @@ export function QuestionCard() {
         <div className="mt-3 flex flex-wrap gap-2">
           {(insights.weakCategories.length > 0 ? insights.weakCategories : ["前置詞", "品詞", "語彙"]).map((category) => (
             <span key={category} className="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-600">
-              強化: {category}
+              文法強化: {category}
+            </span>
+          ))}
+          {(insights.weakScenes.length > 0 ? insights.weakScenes : ["restaurant", "shopping", "taxi"]).map((scene) => (
+            <span key={scene} className="rounded-full bg-brand-50 px-3 py-1 text-[11px] font-black text-brand-700">
+              シーン強化: {sceneLabel(scene)}
             </span>
           ))}
         </div>
@@ -149,7 +161,7 @@ export function QuestionCard() {
         <div className="bg-slate-950 p-5 text-white">
           <div className="flex items-center justify-between text-sm">
             <span className="rounded-full bg-white/12 px-3 py-1.5 text-xs font-black text-blue-100">Question {index + 1} / {activeQuestions.length}</span>
-            <span className="rounded-full bg-orange-400/20 px-3 py-1.5 text-xs font-black text-orange-100">{question.category}</span>
+            <span className="rounded-full bg-orange-400/20 px-3 py-1.5 text-xs font-black text-orange-100">{sceneLabel(question.scene)}</span>
           </div>
           <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/15">
             <div className="h-full rounded-full bg-gradient-to-r from-blue-300 to-orange-300" style={{ width: `${progress}%` }} />
@@ -158,10 +170,10 @@ export function QuestionCard() {
 
         <div className="p-5">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">TOEIC Part 5</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">TOEIC Part 5 / {question.category}</p>
             {question.difficulty && <p className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-500">{question.difficulty}</p>}
           </div>
-          <p className="mt-3 text-[1.35rem] font-black leading-9 text-slate-950">{question.prompt}</p>
+          <p className="mt-3 whitespace-pre-line text-[1.35rem] font-black leading-9 text-slate-950">{question.prompt}</p>
         </div>
       </div>
 
