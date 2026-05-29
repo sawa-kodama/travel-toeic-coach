@@ -32,6 +32,11 @@ function CoachBar({ row, tone = "orange" }: { row: StatRow; tone?: "orange" | "b
   );
 }
 
+function coachComment(weakestCategory: string, weakestScene: string, totalAnswered: number) {
+  if (totalAnswered === 0) return "まずは10問ミニ演習を1回完了しましょう。問題ごとの文法・旅行シーン・正誤が記録され、次回から分析が始まります。";
+  return `次回は「${weakestScene}」の場面で「${weakestCategory}」を重点的に確認しましょう。問題ごとの正誤ログをもとに、苦手な文法と旅行シーンを自動で見える化しています。`;
+}
+
 export function StudyStats() {
   const { history } = useStudyHistory();
   const { learnedWords } = useLearnedWords();
@@ -43,7 +48,7 @@ export function StudyStats() {
     { label: "連続学習", value: `${insights.streakDays}`, unit: "日", icon: "🔥" },
     { label: "平均正答率", value: `${insights.accuracy}`, unit: "%", icon: "🎯" },
     { label: "学習時間", value: `${totalMinutes}`, unit: "分", icon: "⏱️" },
-    { label: "覚えた単語", value: `${learnedWordsCount}`, unit: "語", icon: "📚" },
+    { label: "問題別ログ", value: `${insights.answerDetails.length}`, unit: "件", icon: "🧠" },
   ];
 
   const weakCategoryRows: StatRow[] = insights.categoryStats
@@ -58,9 +63,9 @@ export function StudyStats() {
     .slice(0, 4)
     .map((stat) => ({ label: sceneLabel(stat.scene), correct: stat.correct, total: stat.total }));
 
-  const strongestCategory = insights.strongCategories[0] ?? "分析中";
+  const strongestCategory = insights.strongCategories[0] ?? (weakCategoryRows.length > 0 ? "もう少し演習で判定" : "分析中");
   const weakestCategory = insights.weakCategories[0] ?? weakCategoryRows[0]?.label ?? "分析中";
-  const strongestScene = insights.strongScenes[0] ? sceneLabel(insights.strongScenes[0]) : "分析中";
+  const strongestScene = insights.strongScenes[0] ? sceneLabel(insights.strongScenes[0]) : weakSceneRows.length > 0 ? "もう少し演習で判定" : "分析中";
   const weakestScene = insights.weakScenes[0] ? sceneLabel(insights.weakScenes[0]) : weakSceneRows[0]?.label ?? "分析中";
 
   return (
@@ -102,6 +107,7 @@ export function StudyStats() {
       <div className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">Weakness Dashboard</p>
         <h2 className="mt-1 text-xl font-black text-slate-950">苦手分析ダッシュボード</h2>
+        <p className="mt-2 text-xs font-bold leading-5 text-slate-500">演習完了時に、1問ごとの「文法カテゴリ・旅行シーン・正誤」を保存して分析します。</p>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-orange-50 p-3 ring-1 ring-orange-100">
             <p className="text-[10px] font-black text-orange-500">重点文法</p>
@@ -136,11 +142,23 @@ export function StudyStats() {
           </div>
         </div>
 
+        {insights.recentMistakes.length > 0 && (
+          <div className="mt-4 rounded-2xl bg-rose-50 p-4 ring-1 ring-rose-100">
+            <p className="text-xs font-black text-rose-600">最近のミス</p>
+            <div className="mt-2 grid gap-2">
+              {insights.recentMistakes.slice(0, 4).map((mistake, index) => (
+                <div key={`${mistake.questionId}-${index}`} className="rounded-xl bg-white p-3 text-xs leading-5 text-slate-600">
+                  <p className="font-black text-slate-800">{sceneLabel(mistake.scene)} / {mistake.category}</p>
+                  <p className="mt-1">選択: {mistake.selectedText} → 正解: {mistake.answerText}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mt-4 rounded-2xl bg-slate-950 p-4 text-white">
           <p className="text-xs font-black text-blue-200">Coach Note</p>
-          <p className="mt-2 text-sm font-bold leading-6 text-slate-100">
-            次回は「{weakestScene}」の場面で「{weakestCategory}」を重点的に確認しましょう。正答率が80%を超えると、より応用的な問題が増えます。
-          </p>
+          <p className="mt-2 text-sm font-bold leading-6 text-slate-100">{coachComment(weakestCategory, weakestScene, insights.totalAnswered)}</p>
         </div>
       </div>
     </section>

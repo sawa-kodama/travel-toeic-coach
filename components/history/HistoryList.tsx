@@ -23,7 +23,7 @@ export function HistoryList() {
       <div className="mt-3 grid gap-3">
         {history.length === 0 && (
           <div className="rounded-[1.7rem] bg-white p-5 text-sm leading-6 text-slate-500 shadow-sm ring-1 ring-slate-100">
-            まだ履歴がありません。10問ミニ演習を完了すると、正答率・苦手カテゴリ・苦手シーン・ミス傾向がここに記録されます。
+            まだ履歴がありません。10問ミニ演習を完了すると、正答率・苦手カテゴリ・苦手シーン・問題別ログがここに記録されます。
           </div>
         )}
         {history.map((item) => (
@@ -44,8 +44,8 @@ export function HistoryList() {
                 <p className="text-[10px] font-bold text-slate-400">正解数</p>
               </div>
               <div className="rounded-2xl bg-slate-50 p-3">
-                <p className="text-lg font-black text-slate-950">{item.minutes}分</p>
-                <p className="text-[10px] font-bold text-slate-400">学習時間</p>
+                <p className="text-lg font-black text-slate-950">{item.answerDetails?.length ?? 0}件</p>
+                <p className="text-[10px] font-bold text-slate-400">問題別ログ</p>
               </div>
             </div>
 
@@ -62,6 +62,26 @@ export function HistoryList() {
                 ) : null}
               </div>
             )}
+
+            {item.answerDetails?.length ? (
+              <details className="mt-3 rounded-2xl bg-slate-50 p-3">
+                <summary className="cursor-pointer text-xs font-black text-slate-500">問題別ログを見る</summary>
+                <div className="mt-3 grid gap-2">
+                  {item.answerDetails.map((detail, index) => (
+                    <div key={`${detail.questionId}-${index}`} className="rounded-xl bg-white p-3 text-xs leading-5 ring-1 ring-slate-100">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-black text-slate-800">Q{index + 1} / {sceneLabel(detail.scene)} / {detail.category}</p>
+                        <span className={detail.isCorrect ? "rounded-full bg-emerald-50 px-2 py-1 font-black text-emerald-600" : "rounded-full bg-rose-50 px-2 py-1 font-black text-rose-600"}>
+                          {detail.isCorrect ? "正解" : "復習"}
+                        </span>
+                      </div>
+                      <p className="mt-2 whitespace-pre-line text-slate-500">{detail.prompt}</p>
+                      <p className="mt-2 font-bold text-slate-600">選択: {detail.selectedText} / 正解: {detail.answerText}</p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </article>
         ))}
       </div>

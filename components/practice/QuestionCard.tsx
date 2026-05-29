@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { questions as fixedQuestions } from "@/data/questions";
 import type { Choice, Question } from "@/types/question";
 import { useStudyHistory } from "@/hooks/useStudyHistory";
-import { analyzeHistory, buildCategoryStatsFromAnswers, buildSceneStatsFromAnswers, extractMissedWords, levelLabel, sceneLabel, selectAdaptiveQuestions } from "@/lib/learning";
+import { analyzeHistory, buildAnswerDetailsFromAnswers, buildCategoryStatsFromAnswers, buildSceneStatsFromAnswers, extractMissedWords, levelLabel, sceneLabel, selectAdaptiveQuestions } from "@/lib/learning";
 import { AnswerChoices } from "./AnswerChoices";
 import { ResultSummary } from "./ResultSummary";
 
@@ -124,6 +124,7 @@ export function QuestionCard() {
       const weakCategories = categoryStats.filter((stat) => stat.correct < stat.total).map((stat) => stat.category).slice(0, 4);
       const weakScenes = sceneStats.filter((stat) => stat.correct < stat.total).map((stat) => stat.scene).slice(0, 4);
       const missedWords = extractMissedWords(finalRecords);
+      const answerDetails = buildAnswerDetailsFromAnswers(finalRecords);
 
       if (!saved) {
         addHistory({
@@ -139,6 +140,7 @@ export function QuestionCard() {
           categoryStats,
           sceneStats,
           weakScenes,
+          answerDetails,
           missedWords,
         });
         setSaved(true);

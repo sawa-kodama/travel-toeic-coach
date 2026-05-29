@@ -1,5 +1,5 @@
-import type { StudyHistory, CategoryStat, SceneStat } from "@/types/history";
-import type { DifficultyLevel, Question, SceneId } from "@/types/question";
+import type { AnswerDetail, CategoryStat, SceneStat, StudyHistory } from "@/types/history";
+import type { Choice, DifficultyLevel, Question, SceneId } from "@/types/question";
 import { sceneLabels } from "@/data/questions";
 
 export type LearningInsights = {
@@ -16,11 +16,17 @@ export type LearningInsights = {
   strongScenes: string[];
   categoryStats: CategoryStat[];
   sceneStats: SceneStat[];
+  answerDetails: AnswerDetail[];
+  recentMistakes: AnswerDetail[];
   missedWords: string[];
 };
 
 function toDateKey(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function accuracy(correct: number, total: number) {
+  return total > 0 ? Math.round((correct / total) * 100) : 0;
 }
 
 export function calculateStreakDays(history: StudyHistory[]) {
@@ -36,10 +42,24 @@ export function calculateStreakDays(history: StudyHistory[]) {
   return streak;
 }
 
+export function getAllAnswerDetails(history: StudyHistory[]) {
+  return history.flatMap((item) => item.answerDetails ?? []);
+}
+
 export function mergeCategoryStats(history: StudyHistory[]): CategoryStat[] {
   const map = new Map<string, CategoryStat>();
 
   for (const item of history) {
+    if (item.answerDetails?.length) {
+      for (const detail of item.answerDetails) {
+        const current = map.get(detail.category) ?? { category: detail.category, correct: 0, total: 0 };
+        current.total += 1;
+        if (detail.isCorrect) current.correct += 1;
+        map.set(detail.category, current);
+      }
+      continue;
+    }
+
     for (const stat of item.categoryStats ?? []) {
       const current = map.get(stat.category) ?? { category: stat.category, correct: 0, total: 0 };
       current.correct += stat.correct;
@@ -55,6 +75,16 @@ export function mergeSceneStats(history: StudyHistory[]): SceneStat[] {
   const map = new Map<string, SceneStat>();
 
   for (const item of history) {
+    if (item.answerDetails?.length) {
+      for (const detail of item.answerDetails) {
+        const current = map.get(detail.scene) ?? { scene: detail.scene, correct: 0, total: 0 };
+        current.total += 1;
+        if (detail.isCorrect) current.correct += 1;
+        map.set(detail.scene, current);
+      }
+      continue;
+    }
+
     for (const stat of item.sceneStats ?? []) {
       const current = map.get(stat.scene) ?? { scene: stat.scene, correct: 0, total: 0 };
       current.correct += stat.correct;
@@ -75,47 +105,49 @@ export function inferLevel(recentAccuracy: number, totalAnswered: number): Diffi
 export function analyzeHistory(history: StudyHistory[]): LearningInsights {
   const totalAnswered = history.reduce((sum, item) => sum + item.total, 0);
   const totalCorrect = history.reduce((sum, item) => sum + item.correct, 0);
-  const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+  const overallAccuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
 
   const recent = history.slice(0, 5);
   const recentTotal = recent.reduce((sum, item) => sum + item.total, 0);
   const recentCorrect = recent.reduce((sum, item) => sum + item.correct, 0);
-  const recentAccuracy = recentTotal > 0 ? Math.round((recentCorrect / recentTotal) * 100) : accuracy;
+  const recentAccuracy = recentTotal > 0 ? Math.round((recentCorrect / recentTotal) * 100) : overallAccuracy;
 
   const categoryStats = mergeCategoryStats(history);
   const sceneStats = mergeSceneStats(history);
+  const answerDetails = getAllAnswerDetails(history);
 
   const weakCategories = categoryStats
-    .filter((stat) => stat.total >= 2 && Math.round((stat.correct / stat.total) * 100) < 70)
-    .sort((a, b) => a.correct / a.total - b.correct / b.total)
+    .filter((stat) => stat.total >= 1 && accuracy(stat.correct, stat.total) < 75)
+    .sort((a, b) => accuracy(a.correct, a.total) - accuracy(b.correct, b.total))
     .map((stat) => stat.category)
     .slice(0, 3);
 
   const strongCategories = categoryStats
-    .filter((stat) => stat.total >= 2 && Math.round((stat.correct / stat.total) * 100) >= 80)
-    .sort((a, b) => b.correct / b.total - a.correct / a.total)
+    .filter((stat) => stat.total >= 1 && accuracy(stat.correct, stat.total) >= 80)
+    .sort((a, b) => accuracy(b.correct, b.total) - accuracy(a.correct, a.total))
     .map((stat) => stat.category)
     .slice(0, 3);
 
   const weakScenes = sceneStats
-    .filter((stat) => stat.total >= 2 && Math.round((stat.correct / stat.total) * 100) < 70)
-    .sort((a, b) => a.correct / a.total - b.correct / b.total)
+    .filter((stat) => stat.total >= 1 && accuracy(stat.correct, stat.total) < 75)
+    .sort((a, b) => accuracy(a.correct, a.total) - accuracy(b.correct, b.total))
     .map((stat) => stat.scene)
     .slice(0, 3);
 
   const strongScenes = sceneStats
-    .filter((stat) => stat.total >= 2 && Math.round((stat.correct / stat.total) * 100) >= 80)
-    .sort((a, b) => b.correct / b.total - a.correct / a.total)
+    .filter((stat) => stat.total >= 1 && accuracy(stat.correct, stat.total) >= 80)
+    .sort((a, b) => accuracy(b.correct, b.total) - accuracy(a.correct, a.total))
     .map((stat) => stat.scene)
     .slice(0, 3);
 
-  const missedWords = Array.from(new Set(history.flatMap((item) => item.missedWords ?? []))).slice(0, 12);
+  const recentMistakes = answerDetails.filter((detail) => !detail.isCorrect).slice(0, 8);
+  const missedWords = Array.from(new Set([...history.flatMap((item) => item.missedWords ?? []), ...recentMistakes.map((item) => item.answerText), ...recentMistakes.map((item) => item.selectedText)])).slice(0, 12);
 
   return {
     totalSessions: history.length,
     totalAnswered,
     totalCorrect,
-    accuracy,
+    accuracy: overallAccuracy,
     recentAccuracy,
     level: inferLevel(recentAccuracy, totalAnswered),
     streakDays: calculateStreakDays(history),
@@ -125,6 +157,8 @@ export function analyzeHistory(history: StudyHistory[]): LearningInsights {
     strongScenes,
     categoryStats,
     sceneStats,
+    answerDetails,
+    recentMistakes,
     missedWords,
   };
 }
@@ -155,6 +189,25 @@ export function buildSceneStatsFromAnswers(records: Array<{ question: Question; 
   }
 
   return Array.from(map.values());
+}
+
+function getChoiceText(question: Question, id?: Choice["id"]) {
+  return question.choices.find((choice) => choice.id === id)?.text ?? "";
+}
+
+export function buildAnswerDetailsFromAnswers(records: Array<{ question: Question; selectedId: Choice["id"]; isCorrect: boolean }>): AnswerDetail[] {
+  return records.map((record) => ({
+    questionId: record.question.id,
+    prompt: record.question.prompt,
+    category: String(record.question.category),
+    scene: record.question.scene ?? "general",
+    difficulty: record.question.difficulty,
+    selectedId: record.selectedId,
+    selectedText: getChoiceText(record.question, record.selectedId),
+    answerId: record.question.answerId,
+    answerText: getChoiceText(record.question, record.question.answerId),
+    isCorrect: record.isCorrect,
+  }));
 }
 
 export function extractMissedWords(records: Array<{ question: Question; isCorrect: boolean }>) {

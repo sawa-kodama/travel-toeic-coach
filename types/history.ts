@@ -1,4 +1,4 @@
-import type { DifficultyLevel, SceneId } from "@/types/question";
+import type { Choice, DifficultyLevel, SceneId } from "@/types/question";
 
 export type CategoryStat = {
   category: string;
@@ -10,6 +10,19 @@ export type SceneStat = {
   scene: SceneId | string;
   correct: number;
   total: number;
+};
+
+export type AnswerDetail = {
+  questionId: number;
+  prompt: string;
+  category: string;
+  scene: SceneId | string;
+  difficulty?: DifficultyLevel;
+  selectedId: Choice["id"];
+  selectedText: string;
+  answerId: Choice["id"];
+  answerText: string;
+  isCorrect: boolean;
 };
 
 export type StudyHistory = {
@@ -25,5 +38,6 @@ export type StudyHistory = {
   weakScenes?: string[];
   categoryStats?: CategoryStat[];
   sceneStats?: SceneStat[];
+  answerDetails?: AnswerDetail[];
   missedWords?: string[];
 };
