@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { questions as fixedQuestions } from "@/data/questions";
-import type { Choice, Question } from "@/types/question";
+import type { Choice, Question, SceneId } from "@/types/question";
 import { useStudyHistory } from "@/hooks/useStudyHistory";
 import { analyzeHistory, buildAnswerDetailsFromAnswers, buildCategoryStatsFromAnswers, buildSceneStatsFromAnswers, extractMissedWords, levelLabel, sceneLabel, selectAdaptiveQuestions } from "@/lib/learning";
 import { AnswerChoices } from "./AnswerChoices";
@@ -81,11 +81,72 @@ function wrongChoicePoint(question: Question, selectedId?: Choice["id"]) {
   return question.commonMistake ?? `あなたが選んだ「${selected}」は、この空所の文法・語法には合いません。正解は「${answer}」で、前後の語とのつながりが自然です。`;
 }
 
+
+type PracticeMode = "adaptive" | "review" | "scene" | "part";
+
+const sceneOptions: Array<{ id: SceneId; label: string }> = [
+  { id: "restaurant", label: "レストラン" },
+  { id: "cafe", label: "カフェ" },
+  { id: "shopping", label: "買い物" },
+  { id: "taxi", label: "タクシー" },
+  { id: "train", label: "電車" },
+  { id: "bus", label: "バス" },
+  { id: "airport", label: "空港" },
+  { id: "hotel", label: "ホテル" },
+  { id: "sightseeing", label: "観光" },
+  { id: "emergency", label: "トラブル" },
+  { id: "immigration", label: "入国審査" },
+  { id: "payment", label: "支払い" },
+];
+
+const partOptions: Question["part"][] = ["Part 1", "Part 2", "Part 3", "Part 4", "Part 5", "Part 6", "Part 7"];
+
+function modeTitle(mode: PracticeMode, level: string) {
+  if (mode === "review") return "復習モード・間違えた問題";
+  if (mode === "scene") return "シーン別トレーニング";
+  if (mode === "part") return "Part別トレーニング";
+  return todayTitle(level);
+}
+
+function buildReviewQuestions(insights: ReturnType<typeof analyzeHistory>): Question[] {
+  return insights.reviewQueue
+    .filter((detail) => detail.choices?.length)
+    .map((detail, index) => ({
+      id: 9000 + index,
+      part: (detail.part as Question["part"]) ?? "Part 5",
+      category: detail.category,
+      scene: detail.scene as SceneId,
+      difficulty: detail.difficulty ?? insights.level,
+      prompt: detail.prompt,
+      choices: detail.choices ?? [],
+      answerId: detail.answerId,
+      explanation: `前回は「${detail.selectedText}」を選びました。正解は「${detail.answerText}」です。前後の文脈と場面を確認して、同じミスを避けましょう。`,
+      toeicTip: "復習問題は、同じ形式を短い間隔で解き直すことで記憶に残りやすくなります。",
+      commonMistake: "一度間違えた選択肢は、意味だけでなく品詞・前置詞・場面のどこが違うかを確認しましょう。",
+      travelTip: travelUsePoint(String(detail.scene)),
+    }));
+}
+
 export function QuestionCard() {
   const { history, addHistory } = useStudyHistory();
   const insights = useMemo(() => analyzeHistory(history), [history]);
   const [sessionSeed, setSessionSeed] = useState(0);
-  const activeQuestions = useMemo(() => selectAdaptiveQuestions(fixedQuestions, insights, 10, sessionSeed), [insights, sessionSeed]);
+  const [mode, setMode] = useState<PracticeMode>("adaptive");
+  const [selectedScene, setSelectedScene] = useState<SceneId>("restaurant");
+  const [selectedPart, setSelectedPart] = useState<Question["part"]>("Part 5");
+
+  const activeQuestions = useMemo(() => {
+    const reviewQuestions = buildReviewQuestions(insights);
+    let source = fixedQuestions;
+
+    if (mode === "review") source = reviewQuestions.length > 0 ? reviewQuestions : fixedQuestions.filter((question) => insights.weakCategories.includes(String(question.category)) || insights.weakScenes.includes(question.scene ?? "general"));
+    if (mode === "scene") source = fixedQuestions.filter((question) => question.scene === selectedScene);
+    if (mode === "part") source = fixedQuestions.filter((question) => question.part === selectedPart);
+
+    if (source.length === 0) source = fixedQuestions;
+    return selectAdaptiveQuestions(source, insights, Math.min(10, source.length), sessionSeed);
+  }, [insights, mode, selectedScene, selectedPart, sessionSeed]);
+
   const [index, setIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<Choice["id"] | undefined>();
   const [answered, setAnswered] = useState(false);
@@ -105,7 +166,7 @@ export function QuestionCard() {
     setAnswerRecords([]);
     setFinished(false);
     setSaved(false);
-  }, [sessionSeed]);
+  }, [sessionSeed, mode, selectedScene, selectedPart]);
 
   function handleAnswer() {
     if (!selectedId) return;
@@ -130,10 +191,10 @@ export function QuestionCard() {
         addHistory({
           id: Date.now(),
           date: new Date().toISOString().slice(0, 10),
-          title: todayTitle(insights.level),
+          title: modeTitle(mode, insights.level),
           correct: finalCorrectCount,
           total: activeQuestions.length,
-          minutes: 5,
+          minutes: mode === "review" ? 4 : 5,
           level: insights.level,
           accuracy,
           weakCategories,
@@ -183,15 +244,54 @@ export function QuestionCard() {
       <div className="rounded-[1.6rem] bg-white p-4 shadow-sm ring-1 ring-slate-100">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-black text-brand-700">履歴に合わせて自動選定中</p>
+            <p className="text-xs font-black text-brand-700">学習モードを選択</p>
             <p className="mt-1 text-[11px] font-bold text-slate-500">
-              推定レベル: {levelLabel(insights.level)} / 直近正答率 {insights.recentAccuracy}% / 連続 {insights.streakDays}日
+              推定TOEIC {insights.estimatedToeicScore} / {levelLabel(insights.level)} / 直近正答率 {insights.recentAccuracy}%
             </p>
           </div>
           <button type="button" onClick={handleReselectQuestions} className="rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white">
             再選定
           </button>
         </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {([
+            ["adaptive", "おまかせ"],
+            ["review", `復習 ${insights.reviewQueue.length}`],
+            ["scene", "シーン別"],
+            ["part", "Part別"],
+          ] as Array<[PracticeMode, string]>).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setMode(id)}
+              className={mode === id ? "rounded-2xl bg-brand-600 px-3 py-3 text-xs font-black text-white shadow-card" : "rounded-2xl bg-slate-50 px-3 py-3 text-xs font-black text-slate-500 ring-1 ring-slate-100"}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {mode === "scene" && (
+          <div className="mt-3 no-scrollbar flex gap-2 overflow-x-auto pb-1">
+            {sceneOptions.map((scene) => (
+              <button key={scene.id} type="button" onClick={() => setSelectedScene(scene.id)} className={selectedScene === scene.id ? "shrink-0 rounded-full bg-orange-500 px-4 py-2 text-xs font-black text-white" : "shrink-0 rounded-full bg-orange-50 px-4 py-2 text-xs font-black text-orange-600"}>
+                {scene.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mode === "part" && (
+          <div className="mt-3 no-scrollbar flex gap-2 overflow-x-auto pb-1">
+            {partOptions.map((part) => (
+              <button key={part} type="button" onClick={() => setSelectedPart(part)} className={selectedPart === part ? "shrink-0 rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white" : "shrink-0 rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-500"}>
+                {part}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap gap-2">
           {(insights.weakCategories.length > 0 ? insights.weakCategories : ["前置詞", "品詞", "語彙"]).map((category) => (
             <span key={category} className="rounded-full bg-orange-50 px-3 py-1 text-[11px] font-black text-orange-600">文法強化: {category}</span>

@@ -22,6 +22,8 @@ export type AnswerDetail = {
   selectedText: string;
   answerId: Choice["id"];
   answerText: string;
+  choices?: { id: Choice["id"]; text: string }[];
+  part?: string;
   isCorrect: boolean;
 };
 

@@ -19,6 +19,9 @@ export type LearningInsights = {
   answerDetails: AnswerDetail[];
   recentMistakes: AnswerDetail[];
   missedWords: string[];
+  partStats: CategoryStat[];
+  estimatedToeicScore: number;
+  reviewQueue: AnswerDetail[];
 };
 
 function toDateKey(date: Date) {
@@ -96,6 +99,29 @@ export function mergeSceneStats(history: StudyHistory[]): SceneStat[] {
   return Array.from(map.values()).sort((a, b) => b.total - a.total);
 }
 
+export function mergePartStats(history: StudyHistory[]): CategoryStat[] {
+  const map = new Map<string, CategoryStat>();
+
+  for (const item of history) {
+    for (const detail of item.answerDetails ?? []) {
+      const part = detail.part ?? "Part 5";
+      const current = map.get(part) ?? { category: part, correct: 0, total: 0 };
+      current.total += 1;
+      if (detail.isCorrect) current.correct += 1;
+      map.set(part, current);
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.total - a.total);
+}
+
+export function estimateToeicScore(recentAccuracy: number, totalAnswered: number, level: DifficultyLevel) {
+  const levelBonus: Record<DifficultyLevel, number> = { beginner: 0, intermediate: 45, advanced: 95 };
+  const volumeBonus = Math.min(70, Math.floor(totalAnswered / 20) * 10);
+  const raw = 220 + Math.round(recentAccuracy * 5.1) + levelBonus[level] + volumeBonus;
+  return Math.max(250, Math.min(950, Math.round(raw / 5) * 5));
+}
+
 export function inferLevel(recentAccuracy: number, totalAnswered: number): DifficultyLevel {
   if (totalAnswered >= 20 && recentAccuracy >= 80) return "advanced";
   if (totalAnswered >= 10 && recentAccuracy >= 60) return "intermediate";
@@ -115,6 +141,7 @@ export function analyzeHistory(history: StudyHistory[]): LearningInsights {
   const categoryStats = mergeCategoryStats(history);
   const sceneStats = mergeSceneStats(history);
   const answerDetails = getAllAnswerDetails(history);
+  const partStats = mergePartStats(history);
 
   const weakCategories = categoryStats
     .filter((stat) => stat.total >= 1 && accuracy(stat.correct, stat.total) < 75)
@@ -141,7 +168,10 @@ export function analyzeHistory(history: StudyHistory[]): LearningInsights {
     .slice(0, 3);
 
   const recentMistakes = answerDetails.filter((detail) => !detail.isCorrect).slice(0, 8);
+  const reviewQueue = answerDetails.filter((detail) => !detail.isCorrect).slice(0, 20);
   const missedWords = Array.from(new Set([...history.flatMap((item) => item.missedWords ?? []), ...recentMistakes.map((item) => item.answerText), ...recentMistakes.map((item) => item.selectedText)])).slice(0, 12);
+
+  const level = inferLevel(recentAccuracy, totalAnswered);
 
   return {
     totalSessions: history.length,
@@ -149,7 +179,8 @@ export function analyzeHistory(history: StudyHistory[]): LearningInsights {
     totalCorrect,
     accuracy: overallAccuracy,
     recentAccuracy,
-    level: inferLevel(recentAccuracy, totalAnswered),
+    level,
+    estimatedToeicScore: estimateToeicScore(recentAccuracy, totalAnswered, level),
     streakDays: calculateStreakDays(history),
     weakCategories,
     strongCategories,
@@ -157,8 +188,10 @@ export function analyzeHistory(history: StudyHistory[]): LearningInsights {
     strongScenes,
     categoryStats,
     sceneStats,
+    partStats,
     answerDetails,
     recentMistakes,
+    reviewQueue,
     missedWords,
   };
 }
@@ -206,6 +239,8 @@ export function buildAnswerDetailsFromAnswers(records: Array<{ question: Questio
     selectedText: getChoiceText(record.question, record.selectedId),
     answerId: record.question.answerId,
     answerText: getChoiceText(record.question, record.question.answerId),
+    choices: record.question.choices,
+    part: record.question.part,
     isCorrect: record.isCorrect,
   }));
 }

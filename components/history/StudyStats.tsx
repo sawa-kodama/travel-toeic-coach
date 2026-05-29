@@ -48,6 +48,7 @@ export function StudyStats() {
     { label: "連続学習", value: `${insights.streakDays}`, unit: "日", icon: "🔥" },
     { label: "平均正答率", value: `${insights.accuracy}`, unit: "%", icon: "🎯" },
     { label: "学習時間", value: `${totalMinutes}`, unit: "分", icon: "⏱️" },
+    { label: "推定TOEIC", value: `${insights.estimatedToeicScore}`, unit: "点", icon: "🏆" },
     { label: "問題別ログ", value: `${insights.answerDetails.length}`, unit: "件", icon: "🧠" },
   ];
 
@@ -63,6 +64,12 @@ export function StudyStats() {
     .slice(0, 4)
     .map((stat) => ({ label: sceneLabel(stat.scene), correct: stat.correct, total: stat.total }));
 
+  const partRows: StatRow[] = insights.partStats
+    .filter((stat) => stat.total > 0)
+    .sort((a, b) => accuracy(a.correct, a.total) - accuracy(b.correct, b.total))
+    .slice(0, 7)
+    .map((stat) => ({ label: stat.category, correct: stat.correct, total: stat.total }));
+
   const strongestCategory = insights.strongCategories[0] ?? (weakCategoryRows.length > 0 ? "もう少し演習で判定" : "分析中");
   const weakestCategory = insights.weakCategories[0] ?? weakCategoryRows[0]?.label ?? "分析中";
   const strongestScene = insights.strongScenes[0] ? sceneLabel(insights.strongScenes[0]) : weakSceneRows.length > 0 ? "もう少し演習で判定" : "分析中";
@@ -75,7 +82,7 @@ export function StudyStats() {
         <div className="mt-3 flex items-end justify-between gap-3">
           <div>
             <h2 className="text-3xl font-black">{levelLabel(insights.level)}</h2>
-            <p className="mt-1 text-sm font-bold text-slate-300">直近正答率 {insights.recentAccuracy}% / 累計 {insights.totalAnswered}問</p>
+            <p className="mt-1 text-sm font-bold text-slate-300">推定TOEIC {insights.estimatedToeicScore}点 / 直近正答率 {insights.recentAccuracy}% / 累計 {insights.totalAnswered}問</p>
           </div>
           <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-blue-100">自動調整中</span>
         </div>
@@ -139,6 +146,13 @@ export function StudyStats() {
             <div className="mt-2 grid gap-2">
               {weakSceneRows.length > 0 ? weakSceneRows.map((row) => <CoachBar key={row.label} row={row} tone="blue" />) : <p className="rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-400">演習を完了するとレストラン・買い物・交通などの傾向が表示されます。</p>}
             </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[1.6rem] bg-white p-4 ring-1 ring-slate-100">
+          <p className="text-xs font-black text-slate-500">Part別の弱点</p>
+          <div className="mt-2 grid gap-2">
+            {partRows.length > 0 ? partRows.map((row) => <CoachBar key={row.label} row={row} tone="blue" />) : <p className="rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-400">Part別演習を完了すると、Part 1〜7の正答率が表示されます。</p>}
           </div>
         </div>
 

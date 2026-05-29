@@ -3,11 +3,14 @@
 import { useMemo, useState } from "react";
 import { vocabulary } from "@/data/vocabulary";
 import { useLearnedWords } from "@/hooks/useLearnedWords";
+import { useStudyHistory } from "@/hooks/useStudyHistory";
+import { analyzeHistory } from "@/lib/learning";
 import { WordCard } from "./WordCard";
 import type { VocabularyCategory } from "@/types/vocabulary";
 
 const categories = [
   "All",
+  "Weak",
   "Business Travel",
   "Airport",
   "Hotel",
@@ -26,7 +29,7 @@ const categories = [
 
 const pageSize = 50;
 
-type CategoryFilter = "All" | VocabularyCategory;
+type CategoryFilter = "All" | "Weak" | VocabularyCategory;
 
 function getRangeLabel(page: number, total: number) {
   const start = page * pageSize + 1;
@@ -39,6 +42,8 @@ export function WordList() {
   const [category, setCategory] = useState<CategoryFilter>("All");
   const [page, setPage] = useState(0);
   const { learnedWords, toggleLearned } = useLearnedWords();
+  const { history } = useStudyHistory();
+  const insights = useMemo(() => analyzeHistory(history), [history]);
 
   const words = useMemo(() => vocabulary.map((word) => ({ ...word, learned: Boolean(learnedWords[word.id]) })), [learnedWords]);
   const learnedCount = words.filter((word) => word.learned).length;
@@ -47,10 +52,15 @@ export function WordList() {
   const categoryStats = useMemo(() => {
     return categories.map((item) => {
       if (item === "All") return { category: item, total: words.length, learned: learnedCount };
+      if (item === "Weak") {
+        const weakWords = insights.missedWords.map((word) => word.toLowerCase());
+        const weakMatched = words.filter((word) => weakWords.some((missed) => word.word.toLowerCase().includes(missed) || word.example.toLowerCase().includes(missed)));
+        return { category: item, total: weakMatched.length, learned: weakMatched.filter((word) => word.learned).length };
+      }
       const categoryWords = words.filter((word) => word.category === item);
       return { category: item, total: categoryWords.length, learned: categoryWords.filter((word) => word.learned).length };
     });
-  }, [learnedCount, words]);
+  }, [learnedCount, words, insights.missedWords]);
 
   const filteredWords = useMemo(() => {
     return words.filter((item) => {
@@ -58,10 +68,12 @@ export function WordList() {
         .join(" ")
         .toLowerCase()
         .includes(query.toLowerCase());
-      const matchesCategory = category === "All" || item.category === category;
-      return matchesQuery && matchesCategory;
+      const weakWords = insights.missedWords.map((word) => word.toLowerCase());
+      const matchesWeak = category !== "Weak" || weakWords.some((missed) => item.word.toLowerCase().includes(missed) || item.example.toLowerCase().includes(missed));
+      const matchesCategory = category === "All" || category === "Weak" || item.category === category;
+      return matchesQuery && matchesCategory && matchesWeak;
     });
-  }, [query, category, words]);
+  }, [query, category, words, insights.missedWords]);
 
   const pageCount = Math.max(1, Math.ceil(filteredWords.length / pageSize));
   const safePage = Math.min(page, pageCount - 1);
@@ -128,10 +140,22 @@ export function WordList() {
             onClick={() => updateCategory(item.category)}
             className={item.category === category ? "shrink-0 rounded-full bg-brand-600 px-4 py-2.5 text-xs font-black text-white shadow-card" : "shrink-0 rounded-full bg-white px-4 py-2.5 text-xs font-black text-slate-500 shadow-sm ring-1 ring-slate-100"}
           >
-            {item.category === "All" ? "All" : item.category} <span className="opacity-70">{item.learned}/{item.total}</span>
+            {item.category === "All" ? "All" : item.category === "Weak" ? "苦手語句" : item.category} <span className="opacity-70">{item.learned}/{item.total}</span>
           </button>
         ))}
       </div>
+
+      {insights.missedWords.length > 0 && (
+        <div className="rounded-[1.6rem] bg-rose-50 p-4 ring-1 ring-rose-100">
+          <p className="text-xs font-black text-rose-600">自動登録された苦手語句</p>
+          <p className="mt-2 text-sm font-bold leading-6 text-slate-600">演習で間違えた選択肢・正解語句から自動抽出しています。カテゴリの「苦手語句」でも絞り込めます。</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {insights.missedWords.slice(0, 16).map((word) => (
+              <span key={word} className="rounded-full bg-white px-3 py-1 text-xs font-black text-rose-600 ring-1 ring-rose-100">{word}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-[1.7rem] border border-slate-100 bg-white p-3 shadow-sm">
         <p className="px-2 pb-2 text-xs font-black text-slate-500">50語チャンク</p>
