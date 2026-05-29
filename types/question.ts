@@ -24,11 +24,16 @@ export type SceneId =
 
 export type Question = {
   id: number;
-  part: "Part 5";
+  part: "Part 1" | "Part 2" | "Part 3" | "Part 4" | "Part 5" | "Part 6" | "Part 7";
   category: QuestionCategory | string;
   scene?: SceneId;
   difficulty?: DifficultyLevel;
+  context?: string;
   prompt: string;
+  subQuestion?: string;
+  toeicTip?: string;
+  commonMistake?: string;
+  travelTip?: string;
   choices: Choice[];
   answerId: Choice["id"];
   explanation: string;

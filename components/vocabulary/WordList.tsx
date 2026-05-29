@@ -5,7 +5,23 @@ import { vocabulary } from "@/data/vocabulary";
 import { useLearnedWords } from "@/hooks/useLearnedWords";
 import { WordCard } from "./WordCard";
 
-const categories = ["All", "Hotel", "Airport", "Restaurant", "Transportation", "Business Travel"] as const;
+const categories = [
+  "All",
+  "Hotel",
+  "Airport",
+  "Restaurant",
+  "Cafe",
+  "Shopping",
+  "Transportation",
+  "Taxi",
+  "Train",
+  "Bus",
+  "Sightseeing",
+  "Emergency",
+  "Immigration",
+  "Payment",
+  "Business Travel",
+] as const;
 
 export function WordList() {
   const [query, setQuery] = useState("");
@@ -29,8 +45,9 @@ export function WordList() {
       <div className="rounded-[2rem] bg-slate-950 p-5 text-white shadow-card">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-200">Learned words</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-blue-200">Travel vocabulary</p>
             <p className="mt-2 text-3xl font-black">{learnedCount} / {words.length} 語</p>
+            <p className="mt-1 text-xs font-bold text-slate-300">レストラン・買い物・交通・空港など、旅行で使える単語を増やしました。</p>
           </div>
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white/10 text-3xl">📚</div>
         </div>
@@ -45,7 +62,7 @@ export function WordList() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="単語・意味で検索"
+            placeholder="単語・意味・シーンで検索"
             className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-slate-400"
           />
         </label>

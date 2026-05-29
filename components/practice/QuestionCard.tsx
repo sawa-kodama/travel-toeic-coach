@@ -78,7 +78,7 @@ function wrongChoicePoint(question: Question, selectedId?: Choice["id"]) {
   if (!selectedId || selectedId === question.answerId) return "正解できた問題も、他の選択肢がなぜ違うかを確認すると応用力が上がります。";
   const selected = getChoiceText(question, selectedId);
   const answer = getChoiceText(question, question.answerId);
-  return `あなたが選んだ「${selected}」は、この空所の文法・語法には合いません。正解は「${answer}」で、前後の語とのつながりが自然です。`;
+  return question.commonMistake ?? `あなたが選んだ「${selected}」は、この空所の文法・語法には合いません。正解は「${answer}」で、前後の語とのつながりが自然です。`;
 }
 
 export function QuestionCard() {
@@ -215,10 +215,16 @@ export function QuestionCard() {
 
         <div className="p-5">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">TOEIC Part 5 / {question.category}</p>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">TOEIC {question.part} / {question.category}</p>
             {question.difficulty && <p className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-500">{question.difficulty}</p>}
           </div>
+          {question.context && (
+            <div className="mt-3 whitespace-pre-line rounded-[1.2rem] bg-slate-50 p-4 text-sm font-bold leading-6 text-slate-700 ring-1 ring-slate-100">
+              {question.context}
+            </div>
+          )}
           <p className="mt-3 whitespace-pre-line text-[1.35rem] font-black leading-9 text-slate-950">{question.prompt}</p>
+          {question.subQuestion && <p className="mt-2 text-sm font-bold leading-6 text-brand-700">{question.subQuestion}</p>}
         </div>
       </div>
 
@@ -237,15 +243,15 @@ export function QuestionCard() {
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-brand-600">TOEIC頻出ポイント</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">{categoryToeicPoint(String(question.category))}</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{question.toeicTip ?? categoryToeicPoint(String(question.category))}</p>
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-orange-600">日本人が苦手な理由</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">{japaneseLearnerPoint(String(question.category))}</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{question.commonMistake ?? japaneseLearnerPoint(String(question.category))}</p>
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-600">旅行英語との関連</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">{travelUsePoint(question.scene)}</p>
+              <p className="mt-1 text-sm leading-6 text-slate-600">{question.travelTip ?? travelUsePoint(question.scene)}</p>
             </div>
           </div>
         </div>

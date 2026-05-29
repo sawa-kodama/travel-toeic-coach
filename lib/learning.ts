@@ -198,7 +198,7 @@ function getChoiceText(question: Question, id?: Choice["id"]) {
 export function buildAnswerDetailsFromAnswers(records: Array<{ question: Question; selectedId: Choice["id"]; isCorrect: boolean }>): AnswerDetail[] {
   return records.map((record) => ({
     questionId: record.question.id,
-    prompt: record.question.prompt,
+    prompt: record.question.subQuestion ? `${record.question.prompt} ${record.question.subQuestion}` : record.question.prompt,
     category: String(record.question.category),
     scene: record.question.scene ?? "general",
     difficulty: record.question.difficulty,
@@ -257,6 +257,7 @@ export function selectAdaptiveQuestions(allQuestions: Question[], insights: Lear
   const selected: Question[] = [];
   const usedIds = new Set<number>();
   const sceneCounts = new Map<string, number>();
+  const partCounts = new Map<string, number>();
 
   for (const item of scored.sort((a, b) => b.score - a.score)) {
     if (selected.length >= count) break;
@@ -264,9 +265,13 @@ export function selectAdaptiveQuestions(allQuestions: Question[], insights: Lear
     const scene = item.question.scene ?? "general";
     const currentSceneCount = sceneCounts.get(scene) ?? 0;
     if (currentSceneCount >= 3 && selected.length < count - 2) continue;
+    const part = item.question.part;
+    const currentPartCount = partCounts.get(part) ?? 0;
+    if (currentPartCount >= 4 && selected.length < count - 2) continue;
     selected.push(item.question);
     usedIds.add(item.question.id);
     sceneCounts.set(scene, currentSceneCount + 1);
+    partCounts.set(part, currentPartCount + 1);
   }
 
   for (const question of scored.map((item) => item.question)) {
